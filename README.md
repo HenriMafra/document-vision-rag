@@ -1,94 +1,100 @@
-# 📜 Document Vision RAG — Motor Multimodal de RAG para Documentos Degradados & Históricos
+# Document Vision RAG: Multimodal Retrieval-Augmented Generation for Degraded Historical Records
 
-Motor de **Recuperação Aumentada por Geração (RAG)** multimodal especializado no processamento, transcrição e consulta semântica de **documentos digitalizados complexos, certidões históricas, escrituras manuscritas e contratos antigos** com degradação visual.
-
-Combina **visão computacional avançada (GPT-4o Vision)**, embeddings vetoriais com **PostgreSQL + pgvector** e salvaguardas rigorosas contra alucinações em trechos ilegíveis.
-
----
-
-## 📌 Que Problema Resolve?
-
-Mecanismos convencionais de OCR (como Tesseract ou Textract básico) falham catastroficamente ao lidar com:
-- Páginas amareladas, carimbos sobrepostos e texto manuscrito desbotado.
-- Letras góticas ou ortografia arcaica pré-reforma ortográfica.
-- Tabelas e assinaturas que perdem a estrutura espacial no texto plano.
-
-Quando esse texto mal-extraído é injetado em um pipeline RAG, o LLM frequentemente **alucina datas, nomes e cláusulas contratuais inexistentes**.
-
-O **Document Vision RAG** resolve este problema através de um pipeline em camadas:
-1. **Transcrição Estruturada com Visão:** Emprega modelos de visão multimodal para transcrever preservando a estrutura de layout e marcando explicitamente trechos indecifráveis com marcadores `[ilegível]`.
-2. **Extração de Entidades Nomeadas (NER):** Mapeia outorgantes, outorgados, datas de lavratura, valores monetários em moedas antigas e descrições de bens.
-3. **Indexação Vetorial Híbrida:** Gera embeddings semânticos armazenados no `pgvector` para permitir busca textual exata e busca por similaridade de cosseno.
+**Author:** Henri Mafra  
+**License:** MIT License  
+**Domain:** Multimodal Artificial Intelligence, Computer Vision, Vector Information Retrieval  
 
 ---
 
-## ⚙️ Diferencial Técnico & Arquitetura
+## 1. Overview
+
+Document Vision RAG is an advanced computational pipeline designed for transcription, structured entity extraction, and semantic search over degraded historical records, pre-reform legal deeds, and deteriorated public registers. The architecture pairs **Vision-Language Models (GPT-4o Vision)** with high-dimensional vector search via **PostgreSQL and pgvector**, incorporating uncertainty quantification to mitigate hallucination risks.
+
+---
+
+## 2. Technical Architecture and Pipeline
 
 ```
-[Documento PDF/Imagem Degradada]
-               │
-               ▼
-┌───────────────────────────────┐
-│ Pré-processamento & Binarização│
-└───────────────────────────────┘
-               │
-               ▼
-┌───────────────────────────────┐
-│  GPT-4o Vision OCR Multimodal │ ──> Marcação de incerteza [ilegível]
-└───────────────────────────────┘
-               │
-               ▼
-┌───────────────────────────────┐
-│ Chunking com Consciência de   │
-│ Estrutura + Metadata Ingestion│
-└───────────────────────────────┘
-               │
-               ▼
-┌───────────────────────────────┐
-│ Vetorização & Armazenamento   │ ──> PostgreSQL + Neon (pgvector)
-│ em pgvector (Cosine Index HNSW)│
-└───────────────────────────────┘
-               │
-               ▼
-┌───────────────────────────────┐
-│ Chat RAG com Citações Diretas │ ──> Resposta contextualizada com bounding boxes
-└───────────────────────────────┘
+[Degraded Image / PDF Scan]
+             
+             
+
+ Binarization & Preprocessing  > Adaptive Gaussian thresholding & de-skewing
+
+             
+             
+
+ Multimodal VLM Transcription > Structure-preserving OCR with [unreadable] markers
+
+             
+             
+
+ Semantic Chunking & Metadata > Entity extraction (Dates, Grantors, Properties)
+
+             
+             
+
+ Vector Indexing (pgvector)   > 1536-dimensional embeddings with HNSW indexing
+
+             
+             
+
+ Grounded RAG Query Engine    > Strict citation enforcement against source chunks
+
 ```
 
 ---
 
-## 🏗️ Stack Tecnológica
+## 3. Mathematical Retrieval Formulation
 
-- **Framework Web:** Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui.
-- **Banco Vetorial:** PostgreSQL com extensão `pgvector` (índices HNSW para alta performance).
-- **Provedores de IA:** OpenAI API (GPT-4o Vision & Text-Embedding-3-Small).
-- **Processamento de Arquivos:** PDF.js e Sharp para manipulação e divisão de páginas em buffer.
+Let document collection $D$ be partitioned into chunks $\{c_1, \dots, c_m\}$. Each chunk is embedded into a high-dimensional vector space:
+
+$$\vec{v}_k = \text{Embed}(c_k) \in \mathbb{R}^d, \quad d = 1536$$
+
+Given user query $q$, the retrieval score is determined via Cosine Similarity:
+
+$$\text{Sim}(\vec{v}_q, \vec{v}_k) = \frac{\vec{v}_q \cdot \vec{v}_k}{\|\vec{v}_q\| \|\vec{v}_k\|} = \frac{\sum_{j=1}^d v_{q,j} v_{k,j}}{\sqrt{\sum_{j=1}^d v_{q,j}^2} \sqrt{\sum_{j=1}^d v_{k,j}^2}}$$
+
+To ensure sub-millisecond query performance over large corpus sizes, the PostgreSQL vector store utilizes the **Hierarchical Navigable Small World (HNSW)** index:
+
+```sql
+CREATE INDEX ON document_embeddings 
+USING hnsw (embedding vector_cosine_ops) 
+WITH (m = 16, ef_construction = 64);
+```
 
 ---
 
-## 🚀 Como Executar Localmente
+## 4. Setup and Execution
 
 ```bash
-# 1. Clone o repositório
+# 1. Clone repository
 git clone https://github.com/HenriMafra/document-vision-rag.git
 cd document-vision-rag
 
-# 2. Instale as dependências
+# 2. Install dependencies
 npm install
 
-# 3. Configure as variáveis de ambiente
+# 3. Configure environment
 cp .env.example .env.local
-# Preencha OPENAI_API_KEY e DATABASE_URL no .env.local
+# Set OPENAI_API_KEY and DATABASE_URL
 
-# 4. Execute as migrations do banco vetorial
+# 4. Run database migrations
 npm run db:migrate
 
-# 5. Inicie a aplicação
+# 5. Start application
 npm run dev
 ```
 
 ---
 
-## 📄 Licença
+## 5. References
 
-Distribuído sob a licença **MIT**. Desenvolvido por **Henri Mafra**.
+- Malkov, Y. A., & Yashunin, D. A. (2020). Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 42(4), 824-836.
+- Lewis, P., et al. (2020). Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks. *Advances in Neural Information Processing Systems (NeurIPS)*.
+
+---
+
+## 6. License
+
+Licensed under the MIT License. Copyright (c) Henri Mafra.
